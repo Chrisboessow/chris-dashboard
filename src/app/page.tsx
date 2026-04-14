@@ -1,4 +1,5 @@
 import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { createTask, logAgentMessage, updateTaskProgress } from "./actions";
 
 const navLinks = [
   { label: "Dashboard", emoji: "⌁", active: true },
@@ -34,6 +35,7 @@ type Priority = keyof typeof priorityChip;
 
 type TaskCard = {
   id: string;
+  slug: string;
   title: string;
   description: string | null;
   status: Status;
@@ -59,6 +61,7 @@ type ScheduleSlot = {
 const fallbackTasks: TaskCard[] = [
   {
     id: "OPS-231",
+    slug: "ops-231",
     title: "Dashboard MVP",
     description: "UI polish + Supabase schema",
     status: "in-progress",
@@ -69,6 +72,7 @@ const fallbackTasks: TaskCard[] = [
   },
   {
     id: "OPS-227",
+    slug: "ops-227",
     title: "Calendar sync",
     description: "iCloud blocks + routines",
     status: "blocked",
@@ -79,6 +83,7 @@ const fallbackTasks: TaskCard[] = [
   },
   {
     id: "OPS-198",
+    slug: "ops-198",
     title: "Briefing cron",
     description: "6:00 daily digest",
     status: "ready",
@@ -275,6 +280,7 @@ async function fetchTasks(): Promise<TaskCard[]> {
 
     const mapped = data.map((task) => ({
       id: (task.slug ?? task.title ?? "OPS").toUpperCase(),
+      slug: (task.slug ?? task.title ?? "ops").toLowerCase(),
       title: task.title ?? "Untitled",
       description: task.description ?? "",
       status: safeStatus(task.status),
@@ -528,30 +534,139 @@ export default async function Home() {
               )}
             </GlassCard>
 
-            <GlassCard>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.35em] text-white/50">Ops vitals</p>
-                  <h3 className="mt-1 text-xl font-semibold text-white">Mission health</h3>
-                </div>
-                <span className="rounded-full bg-emerald-400/20 px-3 py-1 text-xs text-emerald-200">
-                  synced {timeFormatter.format(new Date())}
-                </span>
-              </div>
-              <DonutGauge value={missionHealth} />
-              {focusTask && (
-                <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
-                  <p className="text-xs uppercase tracking-[0.35em] text-white/40">Focus task</p>
-                  <p className="mt-1 text-base text-white">{focusTask.title}</p>
-                  <p>{focusTask.description}</p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <StatusBadge status={focusTask.status} />
-                    <PriorityBadge priority={focusTask.priority} />
-                    <span className="text-xs text-white/50">Due {focusTask.due}</span>
+            <div className="space-y-6">
+              <GlassCard>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.35em] text-white/50">Ops vitals</p>
+                    <h3 className="mt-1 text-xl font-semibold text-white">Mission health</h3>
                   </div>
+                  <span className="rounded-full bg-emerald-400/20 px-3 py-1 text-xs text-emerald-200">
+                    synced {timeFormatter.format(new Date())}
+                  </span>
                 </div>
-              )}
-            </GlassCard>
+                <DonutGauge value={missionHealth} />
+                {focusTask && (
+                  <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
+                    <p className="text-xs uppercase tracking-[0.35em] text-white/40">Focus task</p>
+                    <p className="mt-1 text-base text-white">{focusTask.title}</p>
+                    <p>{focusTask.description}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <StatusBadge status={focusTask.status} />
+                      <PriorityBadge priority={focusTask.priority} />
+                      <span className="text-xs text-white/50">Due {focusTask.due}</span>
+                    </div>
+                  </div>
+                )}
+              </GlassCard>
+
+              <GlassCard>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.35em] text-white/50">Command</p>
+                    <h3 className="mt-1 text-xl font-semibold text-white">Direct channel</h3>
+                  </div>
+                  <span className="text-xs text-white/50">Log → activity_feed</span>
+                </div>
+                <form action={logAgentMessage} className="mt-4 space-y-3 text-sm text-white/80">
+                  <label className="block">
+                    <span className="text-xs uppercase tracking-[0.35em] text-white/40">Headline</span>
+                    <input
+                      name="headline"
+                      defaultValue="Direct message"
+                      className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs uppercase tracking-[0.35em] text-white/40">Nachricht</span>
+                    <textarea
+                      name="details"
+                      required
+                      rows={3}
+                      className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                      placeholder="Was soll im Activity-Log landen?"
+                    />
+                  </label>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="text-xs uppercase tracking-[0.35em] text-white/40">Actor</span>
+                      <input
+                        name="actor"
+                        defaultValue="Chris"
+                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                      />
+                    </label>
+                    <div className="flex items-end">
+                      <button
+                        type="submit"
+                        className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-slate-900"
+                      >
+                        Send to log
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </GlassCard>
+
+              <GlassCard className="border-emerald-400/20">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.35em] text-white/50">Create</p>
+                  <h3 className="mt-1 text-xl font-semibold text-white">Neue Mission</h3>
+                </div>
+                <form action={createTask} className="mt-4 space-y-3 text-sm text-white/80">
+                  <input
+                    name="title"
+                    required
+                    placeholder="Titel"
+                    className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                  />
+                  <textarea
+                    name="description"
+                    rows={3}
+                    placeholder="Beschreibung"
+                    className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                  />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <select
+                      name="priority"
+                      defaultValue="high"
+                      className="rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                    >
+                      <option value="high">High</option>
+                      <option value="medium">Medium</option>
+                      <option value="low">Low</option>
+                    </select>
+                    <select
+                      name="status"
+                      defaultValue="in-progress"
+                      className="rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                    >
+                      <option value="ready">Ready</option>
+                      <option value="in-progress">In progress</option>
+                      <option value="blocked">Blocked</option>
+                    </select>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input
+                      type="datetime-local"
+                      name="due"
+                      className="rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                    />
+                    <input
+                      name="tags"
+                      placeholder="Product,Automation"
+                      className="rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full rounded-2xl bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950"
+                  >
+                    Mission speichern
+                  </button>
+                </form>
+              </GlassCard>
+            </div>
           </section>
 
           <section className="grid gap-6 xl:grid-cols-[1.4fr,0.9fr]">
@@ -583,6 +698,7 @@ export default async function Home() {
                       <th className="pb-3 pr-4 font-medium">Due</th>
                       <th className="pb-3 pr-4 font-medium">Tags</th>
                       <th className="pb-3 pr-4 font-medium">Progress</th>
+                      <th className="pb-3 pr-4 font-medium">Update</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
@@ -622,6 +738,40 @@ export default async function Home() {
                             </div>
                             <span className="text-xs text-white/50">{task.progress}%</span>
                           </div>
+                        </td>
+                        <td className="py-4 pr-4">
+                          <form
+                            action={updateTaskProgress}
+                            className="flex flex-col gap-2 text-xs text-white/70"
+                          >
+                            <input type="hidden" name="taskSlug" value={task.slug} />
+                            <select
+                              name="status"
+                              defaultValue={task.status}
+                              className="rounded-2xl border border-white/10 bg-slate-950/70 px-2 py-1 text-white focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                            >
+                              <option value="ready">Ready</option>
+                              <option value="in-progress">In progress</option>
+                              <option value="blocked">Blocked</option>
+                            </select>
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              name="progress"
+                              defaultValue={task.progress}
+                              className="w-full accent-emerald-400"
+                            />
+                            <div className="flex items-center justify-between">
+                              <span>{task.progress}%</span>
+                              <button
+                                type="submit"
+                                className="rounded-2xl border border-white/15 px-3 py-1 text-white"
+                              >
+                                Sync
+                              </button>
+                            </div>
+                          </form>
                         </td>
                       </tr>
                     ))}
