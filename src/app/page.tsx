@@ -330,21 +330,31 @@ export default async function Home() {
   ]);
 
   const nextEvent = schedule[0];
+  const focusTask = tasks.find((task) => task.status === "in-progress") ?? tasks[0];
+  const readyCount = tasks.filter((task) => task.status === "ready").length;
+  const blockedCount = tasks.filter((task) => task.status === "blocked").length;
+  const inProgressCount = tasks.filter((task) => task.status === "in-progress").length;
+  const avgProgress = Math.round(
+    tasks.reduce((sum, task) => sum + task.progress, 0) / (tasks.length || 1)
+  );
+  const statusSummary = focusTask
+    ? `Arbeite aktuell an ${focusTask.title} (${focusTask.progress}%); ${blockedCount} Blocker warten.`
+    : `Keine Tasks aktiv, ${readyCount} bereit.`;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#020617] text-white">
+    <div className="relative min-h-screen overflow-hidden bg-[#01030c] text-white">
       <div className="pointer-events-none">
         <div className="absolute inset-x-0 top-[-200px] h-72 rounded-full bg-emerald-500/10 blur-3xl" />
         <div className="absolute inset-y-0 left-[-200px] w-72 rounded-full bg-indigo-500/20 blur-[160px]" />
         <div className="absolute bottom-[-120px] right-[-100px] h-80 w-80 rounded-full bg-sky-500/10 blur-3xl" />
       </div>
 
-      <nav className="fixed left-6 top-1/2 z-30 flex -translate-y-1/2 flex-col items-center gap-3 rounded-full border border-white/10 bg-white/5 p-3 backdrop-blur-xl">
+      <nav className="sticky top-4 z-30 mx-auto flex w-full max-w-3xl items-center justify-between gap-2 rounded-full border border-white/10 bg-[#050816]/80 px-3 py-3 backdrop-blur-2xl">
         {navItems.map((item) => (
           <button
             key={item.key}
             aria-label={item.label}
-            className={`flex h-12 w-12 items-center justify-center rounded-2xl border transition-all ${
+            className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition-all ${
               item.active
                 ? "border-white bg-white text-slate-900 shadow-[0_15px_30px_rgba(255,255,255,0.35)]"
                 : "border-white/10 text-white/70 hover:border-white/40"
@@ -355,7 +365,7 @@ export default async function Home() {
         ))}
       </nav>
 
-      <main className="relative z-20 px-6 py-10 md:px-12 lg:pl-32 lg:pr-20">
+      <main className="relative z-20 px-4 pb-16 pt-6 sm:px-6 md:px-10 lg:px-16">
         <header className="flex flex-col gap-6 rounded-[36px] border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-8 backdrop-blur-2xl">
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-white/60">Mission Interface</p>
@@ -365,33 +375,60 @@ export default async function Home() {
               Floating Nav, Chat-Trigger und klare Sections.
             </p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <GlassCard className="border-white/5 bg-white/5 text-sm text-white/70">
-              <p className="text-xs uppercase tracking-[0.35em] text-white/60">Tasks</p>
-              <p className="mt-2 text-3xl font-semibold text-white">{tasks.length.toString().padStart(2, "0")}</p>
-              <p>tracked via Supabase</p>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <GlassCard className="border-white/5 bg-[#050816]/80 text-sm text-white/70">
+              <p className="text-xs uppercase tracking-[0.35em] text-white/60">Daily overview</p>
+              <p className="mt-2 text-3xl font-semibold text-white">{avgProgress}%</p>
+              <p>Ø Fortschritt aller Tasks</p>
+              <div className="mt-4 grid grid-cols-3 gap-3 text-center text-xs">
+                <div>
+                  <p className="text-xl font-semibold text-white">{inProgressCount}</p>
+                  <p className="text-white/50">live</p>
+                </div>
+                <div>
+                  <p className="text-xl font-semibold text-emerald-300">{readyCount}</p>
+                  <p className="text-white/50">ready</p>
+                </div>
+                <div>
+                  <p className="text-xl font-semibold text-rose-300">{blockedCount}</p>
+                  <p className="text-white/50">blocked</p>
+                </div>
+              </div>
             </GlassCard>
-            <GlassCard className="border-white/5 bg-white/5 text-sm text-white/70">
-              <p className="text-xs uppercase tracking-[0.35em] text-white/60">Next event</p>
-              <p className="mt-2 text-2xl font-semibold text-white">{nextEvent ? nextEvent.time : "--:--"}</p>
-              <p>{nextEvent ? nextEvent.title : "No meetings"}</p>
+            <GlassCard className="border-white/5 bg-[#050816]/80 text-sm text-white/70">
+              <p className="text-xs uppercase tracking-[0.35em] text-white/60">Next appointments</p>
+              <div className="mt-4 space-y-3">
+                {schedule.slice(0, 2).map((slot) => (
+                  <div key={`${slot.time}-${slot.title}`} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                    <p className="text-xs text-white/50">{slot.time}</p>
+                    <p className="text-base text-white">{slot.title}</p>
+                    <p className="text-xs text-white/60">{slot.description}</p>
+                  </div>
+                ))}
+                {!schedule.length && <p className="text-xs text-white/50">Keine Termine geplant</p>}
+              </div>
             </GlassCard>
-            <GlassCard className="border-white/5 bg-white/5 text-sm text-white/70">
-              <p className="text-xs uppercase tracking-[0.35em] text-white/60">Activity</p>
-              <p className="mt-2 text-3xl font-semibold text-white">{activity.length}</p>
-              <p>latest ops signals</p>
+            <GlassCard className="border-white/5 bg-[#050816]/80 text-sm text-white/70">
+              <p className="text-xs uppercase tracking-[0.35em] text-white/60">Status message</p>
+              <p className="mt-3 text-base text-white">{statusSummary}</p>
+              {focusTask && (
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/60">
+                  <p>Tags: {focusTask.tags.join(", ") || "—"}</p>
+                  <p>Due: {focusTask.due}</p>
+                </div>
+              )}
             </GlassCard>
           </div>
         </header>
 
         <section className="mt-10 grid gap-6 lg:grid-cols-[1.2fr,0.8fr]">
-          <GlassCard className="border-white/5 bg-[#050b1f]/70">
+          <GlassCard className="border-white/5 bg-[#050b1f]/80">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-white/60">Focus</p>
-                <h2 className="mt-2 text-2xl font-semibold text-white">Active missions</h2>
+                <p className="text-xs uppercase tracking-[0.35em] text-white/60">Heute auf dem Tisch</p>
+                <h2 className="mt-2 text-2xl font-semibold text-white">What I’m working on</h2>
               </div>
-              <span className="text-xs text-white/50">Modern dark mode · neon edges</span>
+              <span className="text-xs text-white/50">Mobile-first ready</span>
             </div>
             <div className="mt-4 space-y-4">
               {tasks.slice(0, 4).map((task) => (
@@ -427,13 +464,13 @@ export default async function Home() {
             </div>
           </GlassCard>
 
-          <GlassCard className="border-white/5 bg-[#050b1f]/70">
+          <GlassCard className="border-white/5 bg-[#050b1f]/80">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-white/60">Schedule</p>
-                <h2 className="mt-2 text-2xl font-semibold text-white">Calendar preview</h2>
+                <p className="text-xs uppercase tracking-[0.35em] text-white/60">Daily overview</p>
+                <h2 className="mt-2 text-2xl font-semibold text-white">Next 24h</h2>
               </div>
-              <span className="text-xs text-white/50">Swipe-ready shell</span>
+              <span className="text-xs text-white/50">Kalenderdaten</span>
             </div>
             <div className="mt-4 space-y-4">
               {schedule.map((slot) => (
@@ -448,7 +485,7 @@ export default async function Home() {
         </section>
 
         <section className="mt-6 grid gap-6 lg:grid-cols-2">
-          <GlassCard className="border-white/5 bg-[#050b1f]/70">
+          <GlassCard className="border-white/5 bg-[#050b1f]/80">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.35em] text-white/60">Ops tape</p>
@@ -470,13 +507,26 @@ export default async function Home() {
             </div>
           </GlassCard>
 
-          <GlassCard className="border-dashed border-white/20 bg-white/5 text-white/60">
-            <p className="text-xs uppercase tracking-[0.35em] text-white/40">Coming up</p>
-            <h2 className="mt-2 text-2xl font-semibold text-white">Tab shells</h2>
-            <p className="mt-2 text-sm">
-              Dieser Bereich bleibt bewusst minimal – hier docken später Calendar-, Automation- oder Files-Screens
-              an. Wichtig war erstmal das Jet-Black Canvas inkl. Floating Navigation & Chat-Trigger vorzubereiten.
-            </p>
+          <GlassCard className="border-white/5 bg-[#050b1f]/80 text-white/70">
+            <div>
+              <p className="text-xs uppercase tracking-[0.35em] text-white/60">Daily status</p>
+              <h2 className="mt-2 text-2xl font-semibold text-white">Briefing snapshot</h2>
+            </div>
+            <div className="mt-4 space-y-4 text-sm">
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <p className="text-xs text-white/50">Focus</p>
+                <p className="text-white">{focusTask ? focusTask.title : "No task"}</p>
+                <p className="text-white/60">{focusTask?.description}</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <p className="text-xs text-white/50">Next check-in</p>
+                <p className="text-white">{nextEvent ? `${nextEvent.time} · ${nextEvent.title}` : "keine"}</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <p className="text-xs text-white/50">Summary</p>
+                <p className="text-white/70">Heute {inProgressCount} Tasks live, {readyCount} ready, {blockedCount} warten.</p>
+              </div>
+            </div>
           </GlassCard>
         </section>
       </main>
